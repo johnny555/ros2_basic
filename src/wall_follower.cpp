@@ -1,6 +1,7 @@
 #include "geometry_msgs/msg/twist.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
+#include <algorithm>
 
 using std::placeholders::_1;
 
@@ -19,22 +20,32 @@ private:
     cmd.linear.x = 0.1;
 
     auto ranges = msg->ranges;
-    float right_range = ranges[270];
-    float forward_range = ranges[180];
+    float forward_range = 1;
+    for (int i = 160; i < 190; ++i) {
+      forward_range = std::min(forward_range, ranges[i]);
+    }
+
+    float right_range = ranges[180];
+    for (int i = 260; i < 280; ++i) {
+      right_range = std::min(right_range, ranges[i]);
+    }
 
     // Simple wall follow logic.
 
     if (right_range > 0.3) {
       cmd.angular.z = -0.1;
+      RCLCPP_INFO_STREAM(get_logger(), "Turning towards wall");
     } else {
       if (right_range < 0.2) {
         cmd.angular.z = 0.1;
+        RCLCPP_INFO_STREAM(get_logger(), "Turning away from wall");
       }
     }
 
     // emergency steer left
     if (forward_range < 0.5) {
-      cmd.angular.z = 0.3;
+      cmd.angular.z = 1;
+      RCLCPP_INFO_STREAM(get_logger(), "Emergency Left Steer");
     }
 
     cmd_vel_pub->publish(cmd);
